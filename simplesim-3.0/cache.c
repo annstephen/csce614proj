@@ -391,6 +391,7 @@ cache_create(char *name,		/* name of the cache */
 	  /* insert into head of way list, order is arbitrary at this point */
 	  blk->way_next = cp->sets[i].way_head;
 	  blk->way_prev = NULL;
+	  blk->rrpv = ((2^assoc)-1);
 	  if (cp->sets[i].way_head)
 	    cp->sets[i].way_head->way_prev = blk;
 	  cp->sets[i].way_head = blk;
@@ -409,6 +410,7 @@ cache_char2policy(char c)		/* replacement policy as a char */
   case 'l': return LRU;
   case 'r': return Random;
   case 'f': return FIFO;
+  case 'h': return RRIPHP;
   default: fatal("bogus replacement policy, `%c'", c);
   }
 }
@@ -427,6 +429,7 @@ cache_config(struct cache_t *cp,	/* cache instance */
 	  cp->policy == LRU ? "LRU"
 	  : cp->policy == Random ? "Random"
 	  : cp->policy == FIFO ? "FIFO"
+	  : cp->policy == RRIPHP ? "RRIPHP"
 	  : (abort(), ""));
 }
 
@@ -581,6 +584,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
       repl = CACHE_BINDEX(cp, cp->sets[set].blks, bindex);
     }
     break;
+  case RRIPHP:
   default:
     panic("bogus replacement policy");
   }
@@ -667,7 +671,8 @@ cache_access(struct cache_t *cp,	/* cache to access */
   /* update dirty status */
   if (cmd == Write)
     blk->status |= CACHE_BLK_DIRTY;
-
+  /* On hit set rrpv to 0 */
+  blk->rrpv = 0;
   /* if LRU replacement and this is not the first element of list, reorder */
   if (blk->way_prev && cp->policy == LRU)
     {

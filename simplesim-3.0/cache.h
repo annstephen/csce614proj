@@ -102,7 +102,8 @@
 enum cache_policy {
   LRU,		/* replace least recently used block (perfect LRU) */
   Random,	/* replace a random block */
-  FIFO		/* replace the oldest block in the set */
+  FIFO,	/* replace the oldest block in the set */
+  RRIPHP /*static re-reference interval prediction with hit promotion*/
 };
 
 /* block status values */
@@ -125,6 +126,8 @@ struct cache_blk_t
 				   is set when a miss fetch is initiated */
   byte_t *user_data;		/* pointer to user defined data, e.g.,
 				   pre-decode data or physical page address */
+  /* The rrpv register stores the value for rrip-hp*/
+  int rrpv;
   /* DATA should be pointer-aligned due to preceeding field */
   /* NOTE: this is a variable-size tail array, this must be the LAST field
      defined in this structure! */
