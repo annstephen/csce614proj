@@ -208,6 +208,8 @@ struct cache_t
 
   /* data blocks */
   byte_t *data;			/* pointer to data blocks allocation */
+  /* the value of m, the size of the rrpv register */
+  int m;
 
   /* NOTE: this is a variable-size tail array, this must be the LAST field
      defined in this structure! */

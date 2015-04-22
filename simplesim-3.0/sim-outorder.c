@@ -219,6 +219,9 @@ static int res_fpalu;
 /* total number of floating point multiplier/dividers available */
 static int res_fpmult;
 
+/* Value of m as passed by the user, by default set to 1*/
+static int m_opt;
+
 /* text-based stat profiles */
 #define MAX_PCSTAT_VARS 8
 static int pcstat_nelt = 0;
@@ -754,6 +757,11 @@ sim_reg_options(struct opt_odb_t *odb)
 "    Examples:   -cache:dl1 dl1:4096:32:1:l\n"
 "                -dtlb dtlb:128:4096:32:r\n"
 	       );
+  opt_reg_int(odb, "-m",
+	      "value of m, size of the rrpv register",
+	      &m_opt, /* default */1,
+	      /* print */TRUE, /* format */NULL);
+  
 
   opt_reg_int(odb, "-cache:dl1lat",
 	      "l1 data cache hit latency (in cycles)",
@@ -1017,7 +1025,10 @@ sim_check_options(struct opt_odb_t *odb,        /* options database */
       cache_dl1 = cache_create(name, nsets, bsize, /* balloc */FALSE,
 			       /* usize */0, assoc, cache_char2policy(c),
 			       dl1_access_fn, /* hit lat */cache_dl1_lat);
-
+	  if (m_opt < 1)
+		  fatal("m value has to be 1 or greater");
+	  else
+		  cache_dl1->m = m_opt;
       /* is the level 2 D-cache defined? */
       if (!mystricmp(cache_dl2_opt, "none"))
 	cache_dl2 = NULL;

@@ -52,6 +52,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <math.h>
 
 #include "host.h"
 #include "misc.h"
@@ -391,7 +392,7 @@ cache_create(char *name,		/* name of the cache */
 	  /* insert into head of way list, order is arbitrary at this point */
 	  blk->way_next = cp->sets[i].way_head;
 	  blk->way_prev = NULL;
-	  blk->rrpv = ((2^assoc)-1);
+	  blk->rrpv = ((pow(2,cp->m))-1);
 	  if (cp->sets[i].way_head)
 	    cp->sets[i].way_head->way_prev = blk;
 	  cp->sets[i].way_head = blk;
@@ -549,8 +550,10 @@ cache_access(struct cache_t *cp,	/* cache to access */
 	   blk;
 	   blk=blk->hash_next)
 	{
-	  if (blk->tag == tag && (blk->status & CACHE_BLK_VALID))
+	  if (blk->tag == tag && (blk->status & CACHE_BLK_VALID)){
+		blk->rrpv = 0;
 	    goto cache_hit;
+	  }
 	}
     }
   else
@@ -560,8 +563,10 @@ cache_access(struct cache_t *cp,	/* cache to access */
 	   blk;
 	   blk=blk->way_next)
 	{
-	  if (blk->tag == tag && (blk->status & CACHE_BLK_VALID))
+	  if (blk->tag == tag && (blk->status & CACHE_BLK_VALID)){
+		blk->rrpv = 0;
 	    goto cache_hit;
+	  }
 	}
     }
 
@@ -585,6 +590,35 @@ cache_access(struct cache_t *cp,	/* cache to access */
     }
     break;
   case RRIPHP:
+    {
+	  //printf("rrhp option has been set");
+	  int f = FALSE;
+	  while(!f){
+	  /* replace the left most element with rrvp set to (2^m - 1) */
+      for (blk=cp->sets[set].way_head;
+	   blk && (!f);
+	   blk=blk->way_next)
+	   {
+		if (blk->rrpv == ((pow(2,cp->m))-1)){
+		    //printf("Found one to replace");	
+			repl = blk;
+			f=TRUE;
+			//repl->rrpv = ((2^m) - 2);
+			break;
+		}
+	  }
+	  if(!f){
+	   /*If not found increment rrpv by one*/
+	   for (blk=cp->sets[set].way_head;
+	   blk;
+	   blk=blk->way_next)
+	   {
+		   blk->rrpv = blk->rrpv+1;
+		}
+	  }
+	  }
+    }
+	break;
   default:
     panic("bogus replacement policy");
   }
@@ -652,6 +686,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
   /* link this entry back into the hash table */
   if (cp->hsize)
     link_htab_ent(cp, &cp->sets[set], repl);
+  repl->rrpv = (pow(2,cp->m) - 2);
 
   /* return latency of the operation */
   return lat;
