@@ -412,6 +412,7 @@ cache_char2policy(char c)		/* replacement policy as a char */
   case 'r': return Random;
   case 'f': return FIFO;
   case 'h': return RRIPHP;
+  case 'p': return RRIPFP;
   default: fatal("bogus replacement policy, `%c'", c);
   }
 }
@@ -431,6 +432,7 @@ cache_config(struct cache_t *cp,	/* cache instance */
 	  : cp->policy == Random ? "Random"
 	  : cp->policy == FIFO ? "FIFO"
 	  : cp->policy == RRIPHP ? "RRIPHP"
+	  : cp->policy == RRIPFP ? "RRIPFP"
 	  : (abort(), ""));
 }
 
@@ -551,7 +553,13 @@ cache_access(struct cache_t *cp,	/* cache to access */
 	   blk=blk->hash_next)
 	{
 	  if (blk->tag == tag && (blk->status & CACHE_BLK_VALID)){
-		blk->rrpv = 0;
+		if(cp->policy == RRIPHP){
+			blk->rrpv = 0;
+		}
+		else if (cp->policy == RRIPFP){
+			if(blk->rrpv > 0)
+				blk->rrpv = blk->rrpv - 1;
+		}
 	    goto cache_hit;
 	  }
 	}
@@ -564,7 +572,13 @@ cache_access(struct cache_t *cp,	/* cache to access */
 	   blk=blk->way_next)
 	{
 	  if (blk->tag == tag && (blk->status & CACHE_BLK_VALID)){
-		blk->rrpv = 0;
+		if(cp->policy == RRIPHP){
+			blk->rrpv = 0;
+		}
+		else if (cp->policy == RRIPFP){
+			if(blk->rrpv > 0)
+				blk->rrpv = blk->rrpv - 1;
+		}
 	    goto cache_hit;
 	  }
 	}
@@ -589,6 +603,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
       repl = CACHE_BINDEX(cp, cp->sets[set].blks, bindex);
     }
     break;
+  case RRIPFP:
   case RRIPHP:
     {
 	  //printf("rrhp option has been set");
@@ -707,7 +722,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
   if (cmd == Write)
     blk->status |= CACHE_BLK_DIRTY;
   /* On hit set rrpv to 0 */
-  blk->rrpv = 0;
+  //blk->rrpv = 0;
   /* if LRU replacement and this is not the first element of list, reorder */
   if (blk->way_prev && cp->policy == LRU)
     {

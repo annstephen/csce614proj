@@ -103,7 +103,8 @@ enum cache_policy {
   LRU,		/* replace least recently used block (perfect LRU) */
   Random,	/* replace a random block */
   FIFO,	/* replace the oldest block in the set */
-  RRIPHP /*static re-reference interval prediction with hit promotion*/
+  RRIPHP, /*static re-reference interval prediction with hit promotion*/
+  RRIPFP /*static re-reference interval prediction with frequency promotion*/
 };
 
 /* block status values */
