@@ -344,6 +344,11 @@ cache_create(char *name,		/* name of the cache */
   cp->last_tagset = 0;
   cp->last_blk = NULL;
 
+  
+  cp->t = (1/32);
+  cp->psel = 512;
+  cp->nsdm = 32;
+  
   /* allocate data blocks */
   cp->data = (byte_t *)calloc(nsets * assoc,
 			      sizeof(struct cache_blk_t) +
@@ -413,6 +418,7 @@ cache_char2policy(char c)		/* replacement policy as a char */
   case 'f': return FIFO;
   case 'h': return RRIPHP;
   case 'p': return RRIPFP;
+  case 'd': return DRRIP;
   default: fatal("bogus replacement policy, `%c'", c);
   }
 }
@@ -433,6 +439,7 @@ cache_config(struct cache_t *cp,	/* cache instance */
 	  : cp->policy == FIFO ? "FIFO"
 	  : cp->policy == RRIPHP ? "RRIPHP"
 	  : cp->policy == RRIPFP ? "RRIPFP"
+	  : cp->policy == DRRIP ? "DRRIP"
 	  : (abort(), ""));
 }
 
@@ -553,7 +560,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
 	   blk=blk->hash_next)
 	{
 	  if (blk->tag == tag && (blk->status & CACHE_BLK_VALID)){
-		if(cp->policy == RRIPHP){
+		if((cp->policy == RRIPHP)||(cp->policy == DRRIP)){
 			blk->rrpv = 0;
 		}
 		else if (cp->policy == RRIPFP){
@@ -572,7 +579,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
 	   blk=blk->way_next)
 	{
 	  if (blk->tag == tag && (blk->status & CACHE_BLK_VALID)){
-		if(cp->policy == RRIPHP){
+		if((cp->policy == RRIPHP)||(cp->policy == DRRIP)){
 			blk->rrpv = 0;
 		}
 		else if (cp->policy == RRIPFP){
@@ -603,6 +610,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
       repl = CACHE_BINDEX(cp, cp->sets[set].blks, bindex);
     }
     break;
+  case DRRIP:
   case RRIPFP:
   case RRIPHP:
     {
@@ -701,8 +709,40 @@ cache_access(struct cache_t *cp,	/* cache to access */
   /* link this entry back into the hash table */
   if (cp->hsize)
     link_htab_ent(cp, &cp->sets[set], repl);
-  repl->rrpv = (pow(2,cp->m) - 2);
-
+  if((cp->policy == RRIPFP)||(cp->policy == RRIPHP))
+	repl->rrpv = (pow(2,cp->m) - 2);
+  if (cp->policy == DRRIP){
+	  int k = cp->nsets/cp->nsdm;
+	  if((set%k)==0){
+		  double X=((double)rand()/(double)RAND_MAX);
+		  //double X=0;
+		  if(X <= cp->t){
+			  repl->rrpv = (pow(2,cp->m) - 2);
+		  }
+		  else{
+			  repl->rrpv = (pow(2,cp->m) - 1);
+		  }
+		  cp->psel=cp->psel-1;
+	  }
+	  else if((set%k)==1){
+		  repl->rrpv = (pow(2,cp->m) - 2);
+		  cp->psel++;
+	  }
+	  else{
+		  if(cp->psel > (1024/2)){
+			  float X=((float)rand()/(float)RAND_MAX);
+			  if(X <= cp->t){
+				  repl->rrpv = (pow(2,cp->m) - 2);
+			  }
+			  else{
+				  repl->rrpv = (pow(2,cp->m) - 1);
+			  }
+		  }
+		  else{
+			  repl->rrpv = (pow(2,cp->m) - 2);
+		  }
+	  }
+  }
   /* return latency of the operation */
   return lat;
 

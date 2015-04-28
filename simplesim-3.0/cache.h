@@ -104,7 +104,8 @@ enum cache_policy {
   Random,	/* replace a random block */
   FIFO,	/* replace the oldest block in the set */
   RRIPHP, /*static re-reference interval prediction with hit promotion*/
-  RRIPFP /*static re-reference interval prediction with frequency promotion*/
+  RRIPFP, /*static re-reference interval prediction with frequency promotion*/
+  DRRIP /*Dynamic re-reference interval prediction*/
 };
 
 /* block status values */
@@ -211,7 +212,12 @@ struct cache_t
   byte_t *data;			/* pointer to data blocks allocation */
   /* the value of m, the size of the rrpv register */
   int m;
-
+  /* the portion of the cache that is replaced by long re-reference for bbrip */
+  double t;
+  /* Indication of which replacement technique the follower sets have to follow */
+  int psel;
+  /* The number sets in SDM */
+  int nsdm;
   /* NOTE: this is a variable-size tail array, this must be the LAST field
      defined in this structure! */
   struct cache_set_t sets[1];	/* each entry is a set */
