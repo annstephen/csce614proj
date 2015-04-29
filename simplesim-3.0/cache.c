@@ -724,7 +724,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
 		  }
 		  cp->psel=cp->psel-1;
 	  }
-	  else if((set%k)==1){
+	  else if((set%k)==(k-1)){
 		  repl->rrpv = (pow(2,cp->m) - 2);
 		  cp->psel++;
 	  }

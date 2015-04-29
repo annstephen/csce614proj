@@ -1029,7 +1029,7 @@ sim_check_options(struct opt_odb_t *odb,        /* options database */
 		  fatal("m value has to be 1 or greater");
 	  else
 		  cache_dl1->m = m_opt;
-	  if((c == 'd')&&(nsets<32))
+	  if((c == 'd')&&((nsets/cache_dl1->nsdim)<1))
 		  fatal("Since sdm is 32, the number of sets have to be higher than 32 for drrip");
       /* is the level 2 D-cache defined? */
       if (!mystricmp(cache_dl2_opt, "none"))
