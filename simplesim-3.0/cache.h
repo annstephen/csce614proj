@@ -105,7 +105,8 @@ enum cache_policy {
   FIFO,	/* replace the oldest block in the set */
   RRIPHP, /*static re-reference interval prediction with hit promotion*/
   RRIPFP, /*static re-reference interval prediction with frequency promotion*/
-  DRRIP /*Dynamic re-reference interval prediction*/
+  DRRIP, /*Dynamic re-reference interval prediction*/
+  MDRRIP /*Modified drrip using LRU and SRRIP-HP*/
 };
 
 /* block status values */

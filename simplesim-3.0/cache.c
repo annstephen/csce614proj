@@ -419,6 +419,7 @@ cache_char2policy(char c)		/* replacement policy as a char */
   case 'h': return RRIPHP;
   case 'p': return RRIPFP;
   case 'd': return DRRIP;
+  case 'm': return MDRRIP;
   default: fatal("bogus replacement policy, `%c'", c);
   }
 }
@@ -439,7 +440,7 @@ cache_config(struct cache_t *cp,	/* cache instance */
 	  : cp->policy == FIFO ? "FIFO"
 	  : cp->policy == RRIPHP ? "RRIPHP"
 	  : cp->policy == RRIPFP ? "RRIPFP"
-	  : cp->policy == DRRIP ? "DRRIP"
+	  : cp->policy == MDRRIP ? "MDRRIP"
 	  : (abort(), ""));
 }
 
@@ -539,7 +540,15 @@ cache_access(struct cache_t *cp,	/* cache to access */
      ((addr + (nbytes - 1)) > ((addr & ~cp->blk_mask) + (cp->bsize - 1))) */
   if ((addr + nbytes) > ((addr & ~cp->blk_mask) + cp->bsize))
     fatal("cache: access error: access spans block, addr 0x%08x", addr);
-
+  int rrip;
+  if(cp->policy == MDRRIP){
+	  if(cp->psel > (1024/2)){
+		  rrip = TRUE;
+	  }
+	  else{
+		  rrip = FALSE;
+	  }
+  }
   /* permissions are checked on cache misses */
 
   /* check for a fast hit: access to same block */
@@ -560,7 +569,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
 	   blk=blk->hash_next)
 	{
 	  if (blk->tag == tag && (blk->status & CACHE_BLK_VALID)){
-		if((cp->policy == RRIPHP)||(cp->policy == DRRIP)){
+		if((cp->policy == RRIPHP)||(cp->policy == DRRIP)||((cp->policy == MDRRIP) && rrip)){
 			blk->rrpv = 0;
 		}
 		else if (cp->policy == RRIPFP){
@@ -579,7 +588,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
 	   blk=blk->way_next)
 	{
 	  if (blk->tag == tag && (blk->status & CACHE_BLK_VALID)){
-		if((cp->policy == RRIPHP)||(cp->policy == DRRIP)){
+		if((cp->policy == RRIPHP)||(cp->policy == DRRIP)||((cp->policy == MDRRIP) && rrip)){
 			blk->rrpv = 0;
 		}
 		else if (cp->policy == RRIPFP){
@@ -641,6 +650,39 @@ cache_access(struct cache_t *cp,	/* cache to access */
 	  }
 	  }
     }
+	break;
+  case MDRRIP:
+	if(rrip){
+	  int f = FALSE;
+	  while(!f){
+	  /* replace the left most element with rrvp set to (2^m - 1) */
+      for (blk=cp->sets[set].way_head;
+	   blk && (!f);
+	   blk=blk->way_next)
+	   {
+		if (blk->rrpv == ((pow(2,cp->m))-1)){
+		    //printf("Found one to replace");	
+			repl = blk;
+			f=TRUE;
+			//repl->rrpv = ((2^m) - 2);
+			break;
+		}
+	  }
+	  if(!f){
+	   /*If not found increment rrpv by one*/
+	   for (blk=cp->sets[set].way_head;
+	   blk;
+	   blk=blk->way_next)
+	   {
+		   blk->rrpv = blk->rrpv+1;
+		}
+	  }
+	  }
+	}
+	else{
+		repl = cp->sets[set].way_tail;
+		update_way_list(&cp->sets[set], repl, Head);
+	}
 	break;
   default:
     panic("bogus replacement policy");
@@ -709,8 +751,16 @@ cache_access(struct cache_t *cp,	/* cache to access */
   /* link this entry back into the hash table */
   if (cp->hsize)
     link_htab_ent(cp, &cp->sets[set], repl);
-  if((cp->policy == RRIPFP)||(cp->policy == RRIPHP))
+  if((cp->policy == RRIPFP)||(cp->policy == RRIPHP)||((cp->policy == MDRRIP)&&(rrip))){
 	repl->rrpv = (pow(2,cp->m) - 2);
+	if(cp->policy == MDRRIP){
+		cp->psel=cp->psel-1;
+	}
+  }
+  if((cp->policy == MDRRIP)&&(!rrip)){
+	  cp->psel = cp->psel+1;
+  }
+
   if (cp->policy == DRRIP){
 	  int k = cp->nsets/cp->nsdm;
 	  if((set%k)==0){
@@ -764,7 +814,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
   /* On hit set rrpv to 0 */
   //blk->rrpv = 0;
   /* if LRU replacement and this is not the first element of list, reorder */
-  if (blk->way_prev && cp->policy == LRU)
+  if ((blk->way_prev && cp->policy == LRU)||(blk->way_prev &&(cp->policy == MDRRIP) && (!rrip)))
     {
       /* move this block to head of the way (MRU) list */
       update_way_list(&cp->sets[set], blk, Head);
