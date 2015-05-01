@@ -542,11 +542,20 @@ cache_access(struct cache_t *cp,	/* cache to access */
     fatal("cache: access error: access spans block, addr 0x%08x", addr);
   int rrip;
   if(cp->policy == MDRRIP){
-	  if(cp->psel > (1024/2)){
+	  int k = cp->nsets/cp->nsdm;
+	  if((set%k)==0){
 		  rrip = TRUE;
 	  }
-	  else{
+	  else if((set%k)==(k-1)){
 		  rrip = FALSE;
+	  }
+	  else{
+		  if(cp->psel > (1024/2)){
+			  rrip = TRUE;
+		  }
+		  else{
+			  rrip = FALSE;
+		  }
 	  }
   }
   /* permissions are checked on cache misses */
